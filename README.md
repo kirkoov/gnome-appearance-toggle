@@ -4,7 +4,9 @@ A lightweight GNOME Shell extension that adds a panel button to instantly switch
 
 ## Features
 
-- Toggle between Light and Dark appearance with a single click.
+Toggle between Light and Dark appearance with a single click.
+
+- Planned: automatic synchronization with GNOME Night Light.
 - Uses the native GNOME `GSettings` API.
 - Lightweight, with no external dependencies.
 
@@ -13,14 +15,18 @@ A lightweight GNOME Shell extension that adds a panel button to instantly switch
 - JavaScript (GJS)
 - GNOME Shell Extensions
 - Gio / GSettings
-- Ubuntu 22.04
 - GNOME 42
+- Ubuntu 22.04 LTS
 
 ## Roadmap
 
 - [x] Manual Light/Dark toggle
 - [ ] Automatic synchronization with Night Light
 - [ ] Publish on extensions.gnome.org
+
+## Installation
+
+Coming soon.
 
 ## Licence
 
