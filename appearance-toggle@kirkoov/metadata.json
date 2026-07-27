@@ -1,0 +1,10 @@
+{
+  "uuid": "appearance-toggle@kirkoov",
+  "name": "Appearance Toggle",
+  "description": "Toggle between light and dark appearance.",
+  "version": 1,
+  "shell-version": [
+    "42"
+  ]
+}
+
