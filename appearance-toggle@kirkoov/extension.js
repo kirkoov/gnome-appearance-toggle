@@ -6,6 +6,7 @@ const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 
 let button = null;
+let proxy = null;
 
 function init() {}
 
@@ -23,6 +24,8 @@ function enable() {
 
   Main.panel.addToStatusArea("appearance-toggle", button);
 
+  watchNightLight();
+
   log("[Appearance Toggle] enabled");
 }
 
@@ -33,6 +36,49 @@ function disable() {
   }
 
   log("[Appearance Toggle] disabled");
+}
+
+function watchNightLight() {
+  Gio.DBusProxy.new_for_bus(
+    Gio.BusType.SESSION,
+    Gio.DBusProxyFlags.NONE,
+    null,
+    "org.gnome.SettingsDaemon.Color",
+    "/org/gnome/SettingsDaemon/Color",
+    "org.gnome.SettingsDaemon.Color",
+    null,
+
+    (source, result) => {
+      try {
+        proxy = Gio.DBusProxy.new_for_bus_finish(result);
+
+        log("[Appearance Toggle] Night Light proxy created");
+
+        let active = proxy.get_cached_property("NightLightActive");
+
+        if (active)
+          log(
+            `[Appearance Toggle] Initial NightLightActive = ${active.unpack()}`,
+          );
+        else log("[Appearance Toggle] NightLightActive property not found");
+
+        proxy.connect(
+          "g-properties-changed",
+          (_proxy, changed, _invalidated) => {
+            let props = changed.deepUnpack();
+
+            if ("NightLightActive" in props) {
+              log(
+                `[Appearance Toggle] NightLightActive = ${props["NightLightActive"].unpack()}`,
+              );
+            }
+          },
+        );
+      } catch (e) {
+        logError(e);
+      }
+    },
+  );
 }
 
 function toggleAppearance() {
