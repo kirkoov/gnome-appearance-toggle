@@ -56,11 +56,14 @@ function watchNightLight() {
 
         let active = proxy.get_cached_property("NightLightActive");
 
-        if (active)
-          log(
-            `[Appearance Toggle] Initial NightLightActive = ${active.unpack()}`,
-          );
-        else log("[Appearance Toggle] NightLightActive property not found");
+        if (active) {
+          // log(
+          //   `[Appearance Toggle] Initial NightLightActive = ${active.unpack()}`,
+          // );
+          const enabled = active.unpack();
+          log(`[Appearance Toggle] Initial NightLightActive = ${enabled}`);
+          setAppearance(enabled);
+        } else log("[Appearance Toggle] NightLightActive property not found");
 
         proxy.connect(
           "g-properties-changed",
@@ -68,9 +71,12 @@ function watchNightLight() {
             let props = changed.deepUnpack();
 
             if ("NightLightActive" in props) {
-              log(
-                `[Appearance Toggle] NightLightActive = ${props["NightLightActive"].unpack()}`,
-              );
+              // log(
+              //   `[Appearance Toggle] NightLightActive = ${props["NightLightActive"].unpack()}`,
+              // );
+              const active = props["NightLightActive"].unpack();
+              log(`[Appearance Toggle] NightLightActive = ${active}`);
+              setAppearance(active);
             }
           },
         );
@@ -88,9 +94,17 @@ function toggleAppearance() {
 
   const current = settings.get_string("color-scheme");
 
-  const next = current === "prefer-dark" ? "prefer-light" : "prefer-dark";
+  setAppearance(current !== "prefer-dark");
+}
+
+function setAppearance(dark) {
+  const settings = new Gio.Settings({
+    schema: "org.gnome.desktop.interface",
+  });
+
+  const next = dark ? "prefer-dark" : "prefer-light";
 
   settings.set_string("color-scheme", next);
 
-  log(`[Appearance Toggle] ${current} -> ${next}`);
+  log(`[Appearance Toggle] Appearance -> ${next}`);
 }
