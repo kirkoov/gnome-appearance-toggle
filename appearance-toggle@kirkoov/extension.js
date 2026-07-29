@@ -2,6 +2,7 @@
 
 const { Gio, St } = imports.gi;
 
+const ExtensionUtils = imports.misc.extensionUtils;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
@@ -10,13 +11,37 @@ const TARGET = "NightLightActive";
 
 let button = null;
 let proxy = null;
-let settings = null;
-let followNightLight = true;
+// let settings = null;
+// let followNightLight = true;
+let interfaceSettings = null;
+let extensionSettings = null;
+
+const Me = ExtensionUtils.getCurrentExtension();
+
+const schemaSource = Gio.SettingsSchemaSource.new_from_directory(
+  Me.dir.get_child("schemas").get_path(),
+  Gio.SettingsSchemaSource.get_default(),
+  false,
+);
+
+const schema = schemaSource.lookup(
+  "org.gnome.shell.extensions.appearance-toggle",
+  false,
+);
+
+if (!schema) throw new Error("Extension settings schema not found");
+
+extensionSettings = new Gio.Settings({
+  settings_schema: schema,
+});
 
 function init() {}
 
 function enable() {
-  settings = new Gio.Settings({
+  // settings = new Gio.Settings({
+  //   schema: "org.gnome.desktop.interface",
+  // });
+  interfaceSettings = new Gio.Settings({
     schema: "org.gnome.desktop.interface",
   });
 
@@ -33,12 +58,20 @@ function enable() {
   toggleItem.connect("activate", toggleAppearance);
   button.menu.addMenuItem(toggleItem);
 
+  const followNightLight = extensionSettings.get_boolean("follow-night-light");
+
+  // const followItem = new PopupMenu.PopupSwitchMenuItem(
+  //   "Follow Night Light",
+  //   followNightLight,
+  // );
   const followItem = new PopupMenu.PopupSwitchMenuItem(
     "Follow Night Light",
     followNightLight,
   );
+
   followItem.connect("toggled", (_item, state) => {
-    followNightLight = state;
+    // followNightLight = state;
+    extensionSettings.set_boolean("follow-night-light", state);
     log(`${MARKER} Follow Night Light = ${state}`);
   });
 
@@ -57,7 +90,7 @@ function disable() {
     button = null;
   }
 
-  settings = null;
+  interfaceSettings = null;
   proxy = null;
 
   log(`${MARKER} disabled`);
@@ -90,7 +123,9 @@ function watchNightLight() {
         if (active) {
           const enabled = active.unpack();
           log(`${MARKER} Initial ${TARGET} = ${enabled}`);
-          if (followNightLight) setDarkTheme(enabled);
+          // if (followNightLight) setDarkTheme(enabled);
+          if (extensionSettings.get_boolean("follow-night-light"))
+            setDarkTheme(enabled);
         } else log(`${MARKER} ${TARGET} property not found`);
 
         // The heart of it all - the subscription to a signal from the NL proxy.
@@ -106,7 +141,9 @@ function watchNightLight() {
             if (TARGET in props) {
               const active = props[TARGET].unpack();
               log(`${MARKER} ${TARGET} = ${active}`);
-              if (followNightLight) setDarkTheme(active);
+              // if (followNightLight) setDarkTheme(active);
+              if (extensionSettings.get_boolean("follow-night-light"))
+                setDarkTheme(active);
             }
           },
         );
@@ -118,7 +155,8 @@ function watchNightLight() {
 }
 
 function toggleAppearance() {
-  const current = settings.get_string("color-scheme");
+  // const current = settings.get_string("color-scheme");
+  const current = interfaceSettings.get_string("color-scheme");
 
   setDarkTheme(current !== "prefer-dark");
 }
@@ -126,7 +164,8 @@ function toggleAppearance() {
 function setDarkTheme(useDarkTheme) {
   const next = useDarkTheme ? "prefer-dark" : "prefer-light";
 
-  settings.set_string("color-scheme", next);
+  // settings.set_string("color-scheme", next);
+  interfaceSettings.set_string("color-scheme", next);
 
   log(`${MARKER} Appearance -> ${next}`);
 }

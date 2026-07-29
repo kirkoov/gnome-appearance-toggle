@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<schemalist>
+
+  <schema
+      id="org.gnome.shell.extensions.appearance-toggle"
+      path="/org/gnome/shell/extensions/appearance-toggle/">
+
+    <key
+        name="follow-night-light"
+        type="b">
+
+      <default>true</default>
+
+      <summary>Follow Night Light</summary>
+
+      <description>
+        Automatically synchronize the appearance with GNOME Night Light.
+      </description>
+
+    </key>
+
+  </schema>
+
+</schemalist>
