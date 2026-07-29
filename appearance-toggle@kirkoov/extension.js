@@ -4,13 +4,20 @@ const { Gio, St } = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
+const MARKER = "[Appearance Toggle]";
+const TARGET = "NightLightActive";
 
 let button = null;
 let proxy = null;
+let settings = null;
 
 function init() {}
 
 function enable() {
+  settings = new Gio.Settings({
+    schema: "org.gnome.desktop.interface",
+  });
+
   button = new PanelMenu.Button(0.0, "Appearance Toggle");
 
   const icon = new St.Icon({
@@ -26,7 +33,7 @@ function enable() {
 
   watchNightLight();
 
-  log("[Appearance Toggle] enabled");
+  log(`${MARKER} enabled`);
 }
 
 function disable() {
@@ -35,48 +42,56 @@ function disable() {
     button = null;
   }
 
-  log("[Appearance Toggle] disabled");
+  settings = null;
+  proxy = null;
+
+  log(`${MARKER} disabled`);
 }
 
 function watchNightLight() {
   Gio.DBusProxy.new_for_bus(
-    Gio.BusType.SESSION,
-    Gio.DBusProxyFlags.NONE,
-    null,
-    "org.gnome.SettingsDaemon.Color",
-    "/org/gnome/SettingsDaemon/Color",
-    "org.gnome.SettingsDaemon.Color",
+    // Hand GNOME a function and it starts working internally ASYNCHRONOUSLY (new_for_bus, e.g. opening D-Buses, checking
+    // permissions, locating services, etc.) AND return to where the call to this function originates! And in our case,
+    // the calling enable() finishes out there. WHEREAS GNOME is busy still. AS IT FINISHES, it now calls me to deliver on
+    // the source (the async operation) and result (the completed proxy):
+    Gio.BusType.SESSION, // connect me to my user's D-Bus
+    Gio.DBusProxyFlags.NONE, // no special behaviour, just create a normal proxy
+    null, // supply no extra info
+    "org.gnome.SettingsDaemon.Color", // the "recipient department"
+    "/org/gnome/SettingsDaemon/Color", // the addressee
+    "org.gnome.SettingsDaemon.Color", // "speak this protocol"
     null,
 
-    (source, result) => {
+    (_source, result) => {
       try {
+        //The result contains the completed asynchronous operation.
+        // new_for_bus_finish() extracts the finished proxy from it.
         proxy = Gio.DBusProxy.new_for_bus_finish(result);
 
-        log("[Appearance Toggle] Night Light proxy created");
+        log(`${MARKER} Night Light proxy created`);
 
-        let active = proxy.get_cached_property("NightLightActive");
+        const active = proxy.get_cached_property(TARGET);
 
         if (active) {
-          // log(
-          //   `[Appearance Toggle] Initial NightLightActive = ${active.unpack()}`,
-          // );
           const enabled = active.unpack();
-          log(`[Appearance Toggle] Initial NightLightActive = ${enabled}`);
-          setAppearance(enabled);
-        } else log("[Appearance Toggle] NightLightActive property not found");
+          log(`${MARKER} Initial ${TARGET} = ${enabled}`);
+          setDarkTheme(enabled);
+        } else log(`${MARKER} ${TARGET} property not found`);
 
+        // The heart of it all - the subscription to a signal from the NL proxy.
+        // Subscribe to Night Light property changes (via the following GLib variants
+        // in need of further unpacking to see what's inside).
+        // GNOME invokes this callback whenever the property changes.
+        // No polling or timers are involved.
         proxy.connect(
           "g-properties-changed",
           (_proxy, changed, _invalidated) => {
-            let props = changed.deepUnpack();
+            const props = changed.deepUnpack();
 
-            if ("NightLightActive" in props) {
-              // log(
-              //   `[Appearance Toggle] NightLightActive = ${props["NightLightActive"].unpack()}`,
-              // );
-              const active = props["NightLightActive"].unpack();
-              log(`[Appearance Toggle] NightLightActive = ${active}`);
-              setAppearance(active);
+            if (TARGET in props) {
+              const active = props[TARGET].unpack();
+              log(`${MARKER} ${TARGET} = ${active}`);
+              setDarkTheme(active);
             }
           },
         );
@@ -88,23 +103,15 @@ function watchNightLight() {
 }
 
 function toggleAppearance() {
-  const settings = new Gio.Settings({
-    schema: "org.gnome.desktop.interface",
-  });
-
   const current = settings.get_string("color-scheme");
 
-  setAppearance(current !== "prefer-dark");
+  setDarkTheme(current !== "prefer-dark");
 }
 
-function setAppearance(dark) {
-  const settings = new Gio.Settings({
-    schema: "org.gnome.desktop.interface",
-  });
-
-  const next = dark ? "prefer-dark" : "prefer-light";
+function setDarkTheme(useDarkTheme) {
+  const next = useDarkTheme ? "prefer-dark" : "prefer-light";
 
   settings.set_string("color-scheme", next);
 
-  log(`[Appearance Toggle] Appearance -> ${next}`);
+  log(`${MARKER} Appearance -> ${next}`);
 }

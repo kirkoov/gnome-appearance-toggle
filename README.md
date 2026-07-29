@@ -21,7 +21,8 @@ Toggle between Light and Dark appearance with a single click.
 ## Roadmap
 
 - [x] Manual Light/Dark toggle
-- [ ] Automatic synchronization with Night Light
+- [x] Automatic synchronization with Night Light
+- [ ] Menu to decide - Operate Manually or follow Night Light
 - [ ] Publish on extensions.gnome.org
 
 ## Installation
