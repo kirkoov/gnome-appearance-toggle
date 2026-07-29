@@ -11,6 +11,7 @@ const TARGET = "NightLightActive";
 let button = null;
 let proxy = null;
 let settings = null;
+let followNightLight = true;
 
 function init() {}
 
@@ -32,7 +33,16 @@ function enable() {
   toggleItem.connect("activate", toggleAppearance);
   button.menu.addMenuItem(toggleItem);
 
-  // button.connect("button-press-event", toggleAppearance);
+  const followItem = new PopupMenu.PopupSwitchMenuItem(
+    "Follow Night Light",
+    followNightLight,
+  );
+  followItem.connect("toggled", (_item, state) => {
+    followNightLight = state;
+    log(`${MARKER} Follow Night Light = ${state}`);
+  });
+
+  button.menu.addMenuItem(followItem);
 
   Main.panel.addToStatusArea("appearance-toggle", button);
 
@@ -80,7 +90,7 @@ function watchNightLight() {
         if (active) {
           const enabled = active.unpack();
           log(`${MARKER} Initial ${TARGET} = ${enabled}`);
-          setDarkTheme(enabled);
+          if (followNightLight) setDarkTheme(enabled);
         } else log(`${MARKER} ${TARGET} property not found`);
 
         // The heart of it all - the subscription to a signal from the NL proxy.
@@ -96,7 +106,7 @@ function watchNightLight() {
             if (TARGET in props) {
               const active = props[TARGET].unpack();
               log(`${MARKER} ${TARGET} = ${active}`);
-              setDarkTheme(active);
+              if (followNightLight) setDarkTheme(active);
             }
           },
         );
