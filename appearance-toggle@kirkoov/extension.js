@@ -4,6 +4,7 @@ const { Gio, St } = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
+const PopupMenu = imports.ui.popupMenu;
 const MARKER = "[Appearance Toggle]";
 const TARGET = "NightLightActive";
 
@@ -27,7 +28,11 @@ function enable() {
 
   button.add_child(icon);
 
-  button.connect("button-press-event", toggleAppearance);
+  const toggleItem = new PopupMenu.PopupMenuItem("Toggle now");
+  toggleItem.connect("activate", toggleAppearance);
+  button.menu.addMenuItem(toggleItem);
+
+  // button.connect("button-press-event", toggleAppearance);
 
   Main.panel.addToStatusArea("appearance-toggle", button);
 
