@@ -6,8 +6,9 @@ const ExtensionUtils = imports.misc.extensionUtils;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
-const MARKER = "[Appearance Toggle]";
+const MARKER = "Appearance Toggle";
 const TARGET = "NightLightActive";
+const FNL = "follow-night-light";
 
 let button = null;
 let proxy = null;
@@ -40,7 +41,7 @@ function enable() {
     schema: "org.gnome.desktop.interface",
   });
 
-  button = new PanelMenu.Button(0.0, "Appearance Toggle");
+  button = new PanelMenu.Button(0.0, MARKER);
 
   const icon = new St.Icon({
     icon_name: "display-brightness-symbolic",
@@ -53,7 +54,7 @@ function enable() {
   toggleItem.connect("activate", toggleAppearance);
   button.menu.addMenuItem(toggleItem);
 
-  const followNightLight = extensionSettings.get_boolean("follow-night-light");
+  const followNightLight = extensionSettings.get_boolean(FNL);
 
   const followItem = new PopupMenu.PopupSwitchMenuItem(
     "Follow Night Light",
@@ -61,7 +62,7 @@ function enable() {
   );
 
   followItem.connect("toggled", (_item, state) => {
-    extensionSettings.set_boolean("follow-night-light", state);
+    extensionSettings.set_boolean(FNL, state);
     log(`${MARKER} Follow Night Light = ${state}`);
   });
 
@@ -114,8 +115,7 @@ function watchNightLight() {
           const enabled = active.unpack();
           log(`${MARKER} Initial ${TARGET} = ${enabled}`);
           // if (followNightLight) setDarkTheme(enabled);
-          if (extensionSettings.get_boolean("follow-night-light"))
-            setDarkTheme(enabled);
+          if (extensionSettings.get_boolean(FNL)) setDarkTheme(enabled);
         } else log(`${MARKER} ${TARGET} property not found`);
 
         // The heart of it all - the subscription to a signal from the NL proxy.
@@ -132,8 +132,7 @@ function watchNightLight() {
               const active = props[TARGET].unpack();
               log(`${MARKER} ${TARGET} = ${active}`);
 
-              if (extensionSettings.get_boolean("follow-night-light"))
-                setDarkTheme(active);
+              if (extensionSettings.get_boolean(FNL)) setDarkTheme(active);
             }
           },
         );
