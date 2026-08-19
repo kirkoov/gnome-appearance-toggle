@@ -3,12 +3,12 @@
 <schemalist>
 
   <schema
-      id="org.gnome.shell.extensions.appearance-toggle"
-      path="/org/gnome/shell/extensions/appearance-toggle/">
+    id="org.gnome.shell.extensions.appearance-toggle"
+    path="/org/gnome/shell/extensions/appearance-toggle/">
 
     <key
-        name="follow-night-light"
-        type="b">
+      name="follow-night-light"
+      type="b">
 
       <default>true</default>
 

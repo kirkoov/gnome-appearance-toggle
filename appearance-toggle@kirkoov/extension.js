@@ -11,8 +11,6 @@ const TARGET = "NightLightActive";
 
 let button = null;
 let proxy = null;
-// let settings = null;
-// let followNightLight = true;
 let interfaceSettings = null;
 let extensionSettings = null;
 
@@ -38,9 +36,6 @@ extensionSettings = new Gio.Settings({
 function init() {}
 
 function enable() {
-  // settings = new Gio.Settings({
-  //   schema: "org.gnome.desktop.interface",
-  // });
   interfaceSettings = new Gio.Settings({
     schema: "org.gnome.desktop.interface",
   });
@@ -60,17 +55,12 @@ function enable() {
 
   const followNightLight = extensionSettings.get_boolean("follow-night-light");
 
-  // const followItem = new PopupMenu.PopupSwitchMenuItem(
-  //   "Follow Night Light",
-  //   followNightLight,
-  // );
   const followItem = new PopupMenu.PopupSwitchMenuItem(
     "Follow Night Light",
     followNightLight,
   );
 
   followItem.connect("toggled", (_item, state) => {
-    // followNightLight = state;
     extensionSettings.set_boolean("follow-night-light", state);
     log(`${MARKER} Follow Night Light = ${state}`);
   });
@@ -141,7 +131,7 @@ function watchNightLight() {
             if (TARGET in props) {
               const active = props[TARGET].unpack();
               log(`${MARKER} ${TARGET} = ${active}`);
-              // if (followNightLight) setDarkTheme(active);
+
               if (extensionSettings.get_boolean("follow-night-light"))
                 setDarkTheme(active);
             }
@@ -155,7 +145,6 @@ function watchNightLight() {
 }
 
 function toggleAppearance() {
-  // const current = settings.get_string("color-scheme");
   const current = interfaceSettings.get_string("color-scheme");
 
   setDarkTheme(current !== "prefer-dark");
@@ -164,7 +153,6 @@ function toggleAppearance() {
 function setDarkTheme(useDarkTheme) {
   const next = useDarkTheme ? "prefer-dark" : "prefer-light";
 
-  // settings.set_string("color-scheme", next);
   interfaceSettings.set_string("color-scheme", next);
 
   log(`${MARKER} Appearance -> ${next}`);
