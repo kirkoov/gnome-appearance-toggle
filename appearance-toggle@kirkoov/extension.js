@@ -103,7 +103,7 @@ function watchNightLight() {
 
     (_source, result) => {
       try {
-        //The result contains the completed asynchronous operation.
+        // The result contains the completed asynchronous operation.
         // new_for_bus_finish() extracts the finished proxy from it.
         proxy = Gio.DBusProxy.new_for_bus_finish(result);
 
@@ -114,7 +114,6 @@ function watchNightLight() {
         if (active) {
           const enabled = active.unpack();
           log(`${MARKER} Initial ${TARGET} = ${enabled}`);
-          // if (followNightLight) setDarkTheme(enabled);
           if (extensionSettings.get_boolean(FNL)) setDarkTheme(enabled);
         } else log(`${MARKER} ${TARGET} property not found`);
 
