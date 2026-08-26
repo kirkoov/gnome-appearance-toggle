@@ -1,10 +1,10 @@
 {
   "uuid": "appearance-toggle@kirkoov",
   "name": "Appearance Toggle",
-  "description": "Toggle between light and dark appearance.",
+  "description": "Toggle between light and dark appearance, manually or automagically - via GNOME Night Light.",
   "version": 1,
   "shell-version": [
     "42"
-  ]
+  ],
+  "url": "https://github.com/kirkoov/gnome-appearance-toggle"
 }
-
