@@ -1,6 +1,6 @@
 # GNOME Appearance Toggle
 
-A lightweight GNOME Shell extension that adds a panel button to switch between Light and Dark appearance, either manually (right now) or with GNOME Night Light (on a schedule). This allows all your appearance-aware apps (your browser or IDE, etc) to follow suit.
+A lightweight GNOME Shell extension that adds a panel button to switch between Light and Dark appearance, either manually or automatically via GNOME Night Light. This allows appearance-aware applications to follow the system appearance.
 
 ## Features
 
