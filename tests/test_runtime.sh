@@ -6,6 +6,9 @@ source "$TESTS_DIR/helpers.sh"
 
 SCHEMA="org.gnome.desktop.interface"
 KEY="color-scheme"
+EXTENSION_SCHEMA="org.gnome.shell.extensions.appearance-toggle"
+FOLLOW_KEY="follow-night-light"
+SCHEMAS_DIR="$TESTS_DIR/../appearance-toggle@kirkoov/schemas"
 
 test_toggle_now() {
 	local test_name="Toggle now"
@@ -45,11 +48,58 @@ test_toggle_now() {
 	pass "$test_name"
 }
 
+test_follow_night_light_toggle() {
+	local test_name="Follow Night Light"
+	local before
+	local after
+	local expected
+
+	before="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	case "$before" in
+	true)
+		expected=false
+		;;
+	false)
+		expected=true
+		;;
+	*)
+		printf 'Unexpected initial setting: %s\n' "$before"
+		fail "$test_name"
+		return
+		;;
+	esac
+
+	printf 'Current Follow Night Light: %s\n' "$before"
+	printf 'Toggle Follow Night Light in the extension menu, then press Enter here... '
+	read -r
+
+	after="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	printf 'New Follow Night Light: %s\n' "$after"
+
+	if [[ "$after" != "$expected" ]]; then
+		fail "$test_name"
+		return
+	fi
+
+	pass "$test_name"
+}
+
 main() {
 	local failures=0
 	local test
 	local tests=(
 		test_toggle_now
+		test_follow_night_light_toggle
 	)
 
 	for test in "${tests[@]}"; do
