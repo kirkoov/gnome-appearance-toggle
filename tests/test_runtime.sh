@@ -40,6 +40,12 @@ test_toggle_now() {
 
 	printf 'New appearance: %s\n' "$after"
 
+	gsettings set "$SCHEMA" "$KEY" "$before" || {
+		printf 'Failed to restore appearance: %s\n' "$before" >&2
+		fail "$test_name"
+		return
+	}
+
 	if [[ "$after" != "$expected" ]]; then
 		fail "$test_name"
 		return
@@ -85,6 +91,14 @@ test_follow_night_light_toggle() {
 	)"
 
 	printf 'New Follow Night Light: %s\n' "$after"
+
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" "$before" || {
+		printf 'Failed to restore Follow Night Light: %s\n' "$before" >&2
+		fail "$test_name"
+		return
+	}
 
 	if [[ "$after" != "$expected" ]]; then
 		fail "$test_name"
