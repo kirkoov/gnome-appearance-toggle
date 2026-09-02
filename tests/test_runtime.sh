@@ -94,12 +94,41 @@ test_follow_night_light_toggle() {
 	pass "$test_name"
 }
 
+test_follow_night_light_persistence() {
+	local test_name="Follow Night Light persistence"
+	local before
+	local after
+
+	before="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	gnome-extensions disable appearance-toggle@kirkoov
+	gnome-extensions enable appearance-toggle@kirkoov
+
+	after="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	if [[ "$after" != "$before" ]]; then
+		fail "$test_name"
+		return
+	fi
+
+	pass "$test_name"
+}
+
 main() {
 	local failures=0
 	local test
 	local tests=(
 		test_toggle_now
 		test_follow_night_light_toggle
+		test_follow_night_light_persistence
 	)
 
 	for test in "${tests[@]}"; do
