@@ -11,8 +11,23 @@ test_toggle_now() {
 	local test_name="Toggle now"
 	local before
 	local after
+	local expected
 
 	before="$(gsettings get "$SCHEMA" "$KEY")"
+
+	case "$before" in
+	"'prefer-dark'")
+		expected="'prefer-light'"
+		;;
+	"'prefer-light'")
+		expected="'prefer-dark'"
+		;;
+	*)
+		printf 'Unexpected initial appearance: %s\n' "$before"
+		fail "$test_name"
+		return
+		;;
+	esac
 
 	printf 'Current appearance: %s\n' "$before"
 	printf 'Use Appearance Toggle -> Toggle now, then press Enter here... '
@@ -22,7 +37,7 @@ test_toggle_now() {
 
 	printf 'New appearance: %s\n' "$after"
 
-	if [[ "$before" == "$after" ]]; then
+	if [[ "$after" != "$expected" ]]; then
 		fail "$test_name"
 		return
 	fi
