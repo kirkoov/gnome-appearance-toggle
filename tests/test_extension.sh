@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
 
-GREEN='\033[32m'
-RED='\033[31m'
-RESET='\033[0m'
+TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$TESTS_DIR/helpers.sh"
+
+ROOT_DIR="$(cd "$TESTS_DIR/.." && pwd)"
+
 METADATA="$ROOT_DIR/appearance-toggle@kirkoov/metadata.json"
 SCHEMAS_DIR="$ROOT_DIR/appearance-toggle@kirkoov/schemas"
-
-pass() {
-	printf '%s %b✓ PASS%b\n' "$1" "$GREEN" "$RESET"
-}
-
-fail() {
-	printf '%s %b✗ FAILED%b\n' "$1" "$RED" "$RESET"
-	return 1
-}
 
 test_metadata() {
 	local test_name="metadata"
