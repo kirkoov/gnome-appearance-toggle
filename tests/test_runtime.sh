@@ -10,6 +10,33 @@ EXTENSION_SCHEMA="org.gnome.shell.extensions.appearance-toggle"
 FOLLOW_KEY="follow-night-light"
 SCHEMAS_DIR="$TESTS_DIR/../appearance-toggle@kirkoov/schemas"
 
+get_night_light_active() {
+	local output
+
+	output="$(
+		gdbus call \
+			--session \
+			--dest org.gnome.SettingsDaemon.Color \
+			--object-path /org/gnome/SettingsDaemon/Color \
+			--method org.freedesktop.DBus.Properties.Get \
+			org.gnome.SettingsDaemon.Color \
+			NightLightActive
+	)" || return 1
+
+	case "$output" in
+	*"<true>"*)
+		printf '%s\n' true
+		;;
+	*"<false>"*)
+		printf '%s\n' false
+		;;
+	*)
+		printf 'Unexpected NightLightActive value: %s\n' "$output" >&2
+		return 1
+		;;
+	esac
+}
+
 test_toggle_now() {
 	local test_name="Toggle now"
 	local before
@@ -136,6 +163,96 @@ test_follow_night_light_persistence() {
 	pass "$test_name"
 }
 
+test_initial_night_light_sync() {
+	local test_name="Initial Night Light synchronization"
+	local night_light_active
+	local appearance_before
+	local appearance_after
+	local extension_follow_before
+	local expected
+	local wrong
+	local attempt
+
+	night_light_active="$(get_night_light_active)" || {
+		fail "$test_name"
+		return
+	}
+
+	appearance_before="$(gsettings get "$SCHEMA" "$KEY")"
+
+	extension_follow_before="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	case "$night_light_active" in
+	true)
+		expected="'prefer-dark'"
+		wrong="'prefer-light'"
+		;;
+	false)
+		expected="'prefer-light'"
+		wrong="'prefer-dark'"
+		;;
+	*)
+		fail "$test_name"
+		return
+		;;
+	esac
+
+	printf 'Current GNOME NightLightActive: %s\n' "$night_light_active"
+	printf 'Setting appearance deliberately wrong: %s\n' "$wrong"
+
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" true || {
+		fail "$test_name"
+		return
+	}
+
+	gsettings set "$SCHEMA" "$KEY" "$wrong" || {
+		fail "$test_name"
+		return
+	}
+
+	gnome-extensions disable appearance-toggle@kirkoov
+	gnome-extensions enable appearance-toggle@kirkoov
+
+	# Proxy creation is asynchronous, so give the extension a short time
+	# to read NightLightActive and synchronize the appearance.
+	for ((attempt = 0; attempt < 20; attempt++)); do
+		appearance_after="$(gsettings get "$SCHEMA" "$KEY")"
+
+		if [[ "$appearance_after" == "$expected" ]]; then
+			break
+		fi
+
+		sleep 0.1
+	done
+
+	printf 'Appearance after re-enable: %s\n' "$appearance_after"
+
+	# Restore the extension preference first.
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" "$extension_follow_before"
+
+	# Reload once more so the menu reflects the restored preference.
+	gnome-extensions disable appearance-toggle@kirkoov
+	gnome-extensions enable appearance-toggle@kirkoov
+
+	# Finally restore the original appearance.
+	gsettings set "$SCHEMA" "$KEY" "$appearance_before"
+
+	if [[ "$appearance_after" != "$expected" ]]; then
+		fail "$test_name"
+		return
+	fi
+
+	pass "$test_name"
+}
+
 main() {
 	local failures=0
 	local test
@@ -143,6 +260,7 @@ main() {
 		test_toggle_now
 		test_follow_night_light_toggle
 		test_follow_night_light_persistence
+		test_initial_night_light_sync
 	)
 
 	for test in "${tests[@]}"; do
