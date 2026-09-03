@@ -253,6 +253,117 @@ test_initial_night_light_sync() {
 	pass "$test_name"
 }
 
+test_disable_during_proxy_creation() {
+	local test_name="Disable during proxy creation"
+	local appearance_before
+	local extension_follow_before
+	local night_light_active
+	local expected
+	local wrong
+	local attempt
+	local appearance_after
+	local journal_cursor
+	local journal_after
+	local failed=0
+
+	appearance_before="$(gsettings get "$SCHEMA" "$KEY")"
+
+	extension_follow_before="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	night_light_active="$(get_night_light_active)" || {
+		fail "$test_name"
+		return
+	}
+
+	case "$night_light_active" in
+	true)
+		expected="'prefer-dark'"
+		wrong="'prefer-light'"
+		;;
+	false)
+		expected="'prefer-light'"
+		wrong="'prefer-dark'"
+		;;
+	*)
+		fail "$test_name"
+		return
+		;;
+	esac
+
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" true || {
+		fail "$test_name"
+		return
+	}
+
+	# Remember where the journal is before we start stressing the extension.
+	journal_cursor="$(
+		journalctl --user -n 0 --show-cursor --no-pager |
+			sed -n 's/^-- cursor: //p'
+	)"
+
+	for ((attempt = 0; attempt < 20; attempt++)); do
+		gnome-extensions disable appearance-toggle@kirkoov
+		gnome-extensions enable appearance-toggle@kirkoov
+		gnome-extensions disable appearance-toggle@kirkoov
+
+		# Anything arriving after disable must not alter this.
+		gsettings set "$SCHEMA" "$KEY" "$wrong"
+
+		sleep 0.1
+
+		appearance_after="$(gsettings get "$SCHEMA" "$KEY")"
+
+		if [[ "$appearance_after" == "$expected" ]]; then
+			printf 'Late appearance synchronization detected on attempt %d.\n' \
+				"$((attempt + 1))"
+			failed=1
+			break
+		fi
+	done
+
+	# Let any outstanding proxy creations finish while the extension is disabled.
+	sleep 3
+
+	# Look only at journal entries produced since this test started.
+	journal_after="$(
+		journalctl \
+			--user \
+			--after-cursor="$journal_cursor" \
+			--no-pager
+	)"
+
+	if grep -q 'JS ERROR: TypeError: interfaceSettings is null' <<<"$journal_after"; then
+		printf 'Late proxy callback caused a JavaScript error after disable.\n'
+		failed=1
+	fi
+
+	# Restore the state we found before the test.
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" "$extension_follow_before"
+
+	gnome-extensions enable appearance-toggle@kirkoov
+
+	# Let the final enable finish its asynchronous proxy initialization
+	# before restoring the user's appearance.
+	sleep 1
+
+	gsettings set "$SCHEMA" "$KEY" "$appearance_before"
+
+	if ((failed)); then
+		fail "$test_name"
+		return
+	fi
+
+	pass "$test_name"
+}
+
 main() {
 	local failures=0
 	local test
@@ -261,6 +372,7 @@ main() {
 		test_follow_night_light_toggle
 		test_follow_night_light_persistence
 		test_initial_night_light_sync
+		test_disable_during_proxy_creation
 	)
 
 	for test in "${tests[@]}"; do

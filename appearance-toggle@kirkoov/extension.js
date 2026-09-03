@@ -12,6 +12,7 @@ const FNL = "follow-night-light";
 
 let button = null;
 let proxy = null;
+let proxyCancellable = null;
 let interfaceSettings = null;
 let extensionSettings = null;
 
@@ -76,6 +77,12 @@ function enable() {
 }
 
 function disable() {
+  if (proxyCancellable) {
+    const cancellable = proxyCancellable;
+    proxyCancellable = null;
+    cancellable.cancel();
+  }
+
   if (button) {
     button.destroy();
     button = null;
@@ -88,6 +95,9 @@ function disable() {
 }
 
 function watchNightLight() {
+  const cancellable = new Gio.Cancellable();
+  proxyCancellable = cancellable;
+
   Gio.DBusProxy.new_for_bus(
     // Hand GNOME a function and it starts working internally ASYNCHRONOUSLY (new_for_bus, e.g. opening D-Buses, checking
     // permissions, locating services, etc.) AND return to where the call to this function originates! And in our case,
@@ -99,13 +109,17 @@ function watchNightLight() {
     "org.gnome.SettingsDaemon.Color", // the "recipient department"
     "/org/gnome/SettingsDaemon/Color", // the addressee
     "org.gnome.SettingsDaemon.Color", // "speak this protocol"
-    null,
+    cancellable,
 
     (_source, result) => {
       try {
         // The result contains the completed asynchronous operation.
         // new_for_bus_finish() extracts the finished proxy from it.
-        proxy = Gio.DBusProxy.new_for_bus_finish(result);
+        const newProxy = Gio.DBusProxy.new_for_bus_finish(result);
+
+        if (proxyCancellable !== cancellable) return;
+
+        proxy = newProxy;
 
         log(`${MARKER} Night Light proxy created`);
 
@@ -136,6 +150,8 @@ function watchNightLight() {
           },
         );
       } catch (e) {
+        if (proxyCancellable !== cancellable) return;
+
         logError(e);
       }
     },
