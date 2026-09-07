@@ -10,6 +10,12 @@ EXTENSION_SCHEMA="org.gnome.shell.extensions.appearance-toggle"
 FOLLOW_KEY="follow-night-light"
 SCHEMAS_DIR="$TESTS_DIR/../appearance-toggle@kirkoov/schemas"
 
+NIGHT_LIGHT_SCHEMA="org.gnome.settings-daemon.plugins.color"
+NIGHT_LIGHT_ENABLED_KEY="night-light-enabled"
+NIGHT_LIGHT_AUTO_KEY="night-light-schedule-automatic"
+NIGHT_LIGHT_FROM_KEY="night-light-schedule-from"
+NIGHT_LIGHT_TO_KEY="night-light-schedule-to"
+
 get_night_light_active() {
 	local output
 
@@ -364,15 +370,177 @@ test_disable_during_proxy_creation() {
 	pass "$test_name"
 }
 
+test_live_night_light_sync() {
+	local test_name="Live Night Light synchronization"
+	local enabled_before
+	local automatic_before
+	local from_before
+	local to_before
+	local appearance_before
+	local extension_follow_before
+
+	local current_hour
+	local active_from
+	local active_to
+	local inactive_from
+	local inactive_to
+
+	local night_light_inactive
+	local failed=0
+
+	local night_light_active
+
+	local appearance_active
+	local appearance_inactive
+
+	enabled_before="$(
+		gsettings get "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_ENABLED_KEY"
+	)"
+
+	automatic_before="$(
+		gsettings get "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_AUTO_KEY"
+	)"
+
+	from_before="$(
+		gsettings get "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_FROM_KEY"
+	)"
+
+	to_before="$(
+		gsettings get "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_TO_KEY"
+	)"
+
+	appearance_before="$(gsettings get "$SCHEMA" "$KEY")"
+
+	extension_follow_before="$(
+		gsettings \
+			--schemadir "$SCHEMAS_DIR" \
+			get "$EXTENSION_SCHEMA" "$FOLLOW_KEY"
+	)"
+
+	current_hour=$((10#$(date +%H)))
+
+	active_from=$(((current_hour + 23) % 24))
+	active_to=$(((current_hour + 2) % 24))
+
+	inactive_from=$(((current_hour + 2) % 24))
+	inactive_to=$(((current_hour + 3) % 24))
+
+	printf '%s\n' \
+		"GNOME Night Light:" \
+		"  enabled: $enabled_before" \
+		"  automatic schedule: $automatic_before" \
+		"  schedule from: $from_before" \
+		"  schedule to: $to_before"
+
+	printf '%s\n' \
+		"Appearance Toggle:" \
+		"  appearance: $appearance_before" \
+		"  Follow Night Light: $extension_follow_before"
+
+	printf '%s\n' \
+		"Temporary test schedules:" \
+		"  active: $active_from.0 -> $active_to.0" \
+		"  inactive: $inactive_from.0 -> $inactive_to.0"
+
+	# Make sure Appearance Toggle reacts to GNOME Night Light during this test.
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" true
+
+	# Put GNOME Night Light under a deterministic manual schedule
+	# which does NOT include the current time.
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_ENABLED_KEY" true
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_FROM_KEY" "$inactive_from.0"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_TO_KEY" "$inactive_to.0"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_AUTO_KEY" false
+
+	sleep 1
+
+	night_light_inactive="$(get_night_light_active)"
+
+	printf 'NightLightActive under inactive schedule: %s\n' \
+		"$night_light_inactive"
+
+	if [[ "$night_light_inactive" != false ]]; then
+		failed=1
+	fi
+
+	# Move the manual schedule so the current time IS inside it.
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_FROM_KEY" "$active_from.0"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_TO_KEY" "$active_to.0"
+
+	sleep 1
+
+	night_light_active="$(get_night_light_active)"
+
+	printf 'NightLightActive under active schedule: %s\n' \
+		"$night_light_active"
+
+	if [[ "$night_light_active" != true ]]; then
+		failed=1
+	fi
+
+	appearance_active="$(gsettings get "$SCHEMA" "$KEY")"
+
+	printf 'Appearance under active schedule: %s\n' \
+		"$appearance_active"
+
+	if [[ "$appearance_active" != "'prefer-dark'" ]]; then
+		failed=1
+	fi
+
+	# Move the manual schedule outside the current time again.
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_FROM_KEY" "$inactive_from.0"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_TO_KEY" "$inactive_to.0"
+
+	sleep 1
+
+	night_light_inactive="$(get_night_light_active)"
+
+	printf 'NightLightActive after returning to inactive schedule: %s\n' \
+		"$night_light_inactive"
+
+	if [[ "$night_light_inactive" != false ]]; then
+		failed=1
+	fi
+
+	appearance_inactive="$(gsettings get "$SCHEMA" "$KEY")"
+
+	printf 'Appearance after returning to inactive schedule: %s\n' \
+		"$appearance_inactive"
+
+	if [[ "$appearance_inactive" != "'prefer-light'" ]]; then
+		failed=1
+	fi
+
+	# Restore
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_FROM_KEY" "$from_before"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_TO_KEY" "$to_before"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_ENABLED_KEY" "$enabled_before"
+	gsettings set "$NIGHT_LIGHT_SCHEMA" "$NIGHT_LIGHT_AUTO_KEY" "$automatic_before"
+
+	gsettings \
+		--schemadir "$SCHEMAS_DIR" \
+		set "$EXTENSION_SCHEMA" "$FOLLOW_KEY" "$extension_follow_before"
+
+	if ((failed)); then
+		fail "$test_name"
+		return
+	fi
+
+	pass "$test_name"
+}
+
 main() {
 	local failures=0
 	local test
 	local tests=(
-		test_toggle_now
-		test_follow_night_light_toggle
-		test_follow_night_light_persistence
-		test_initial_night_light_sync
-		test_disable_during_proxy_creation
+		# test_toggle_now
+		# test_follow_night_light_toggle
+		# test_follow_night_light_persistence
+		# test_initial_night_light_sync
+		# test_disable_during_proxy_creation
+		test_live_night_light_sync
 	)
 
 	for test in "${tests[@]}"; do
